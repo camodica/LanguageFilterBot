@@ -11,13 +11,9 @@
 # @author Corbin Modica
 
 import os
-
 import random
-
 import csv
-
 import re
-
 import discord
 from dotenv import load_dotenv
 
@@ -27,10 +23,7 @@ load_dotenv()
 # Script scope variables
 #
 
-# TODO: Replace these lists with OI/files so that they are not magic data structures?
-# Set a list of banned words to filter out later
-# banned_words = ["fucking", "fuck"]
-
+# Open and read in the banned words
 with open('bad_words.txt', newline='') as f:
     reader = csv.reader(f)
     tmp = list(reader)
@@ -38,9 +31,7 @@ with open('bad_words.txt', newline='') as f:
     banned_words = tmp[0]
     banned_words = [word.strip() for word in banned_words]
 
-# Set a list of replacement words to filter out later
-# replacement_words = ["derply", "ploobert"]
-
+# Open and read in the replacement words
 with open('funny_words.txt', newline='') as f:
     reader = csv.reader(f)
     tmp = list(reader)
@@ -48,8 +39,15 @@ with open('funny_words.txt', newline='') as f:
     replacement_words = tmp[0]
     replacement_words = [word.strip() for word in replacement_words]
 
+# Sets the mode of the filter. "AGGRESSIVE" and "NAIVE" are the two options"
+mode = "AGGRESSIVE" # TODO: fix corner cases with naive
+
 # A dictionary that tracks userIDs and the number of times that they have violated guidelines!
 user_strikes = {}
+
+# The number of strikes a user can has before they are kicked from the server
+# TODO: consider making this more permanent (hard storage?) as an option
+allowable_strikes = 20
 
 # The token the bot uses for authentication to the discord servers. Stored as part of the environment for security
 # and portability.
@@ -69,9 +67,12 @@ def checkForViolations(content, banned):
     words_found = []
     for ban in banned:
 
-        # create regex for the banned word (case and jerund/spelling agnostic)
-        # TODO: make this more fancy for better matches
-        regex = ban
+        # create regex for the banned word
+        if mode == "NAIVE":
+            # ensure that this word is "isolated" (there is whitespace around it, it is not a compound word)
+            regex = "\s" + ban + "\s"
+        else:
+            regex = ban
 
         # find all the matches (case agnostic)
         matches = re.findall(regex, content, re.IGNORECASE)
@@ -79,13 +80,8 @@ def checkForViolations(content, banned):
         # add all the matches found to the words_found list
         for match in matches:
             if match not in words_found:
-                words_found.append(match)
+                words_found.append(str.strip(match))
                 result = True # TODO there should be a smarter way to do this that doesnt require reassigning every loop
-        
-        # if ban.toLower() in content.toLower():
-        #     words_found.append(ban)
-        #     result = True
-
             
     return result, words_found
 
@@ -132,7 +128,7 @@ async def on_message(message):
 
         # Replace the offending message in the server
         editedMessage = removeViolatingWords(message.content, violations, replacement_words)
-        editedMessage = str(originalAuthor) + ", that message violated language guidelines. The edited message is below:\n" + editedMessage
+        editedMessage = str(originalAuthor) + ", that message violated language guidelines. The edited message is below:\n```" + editedMessage + "```"
 
         await message.delete()
         await message.channel.send(editedMessage)
