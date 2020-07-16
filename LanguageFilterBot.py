@@ -53,6 +53,10 @@ allowable_strikes = 20
 # and portability.
 TOKEN = os.getenv('DISCORD_TOKEN')
 
+# TODO: Move to the environment
+GUILD_ID = "LanguageTestFilter" # os.getenv('GUILD_ID')
+guild = None
+
 # Connect to discord using the Client paradigm
 client = discord.Client()
 
@@ -102,7 +106,16 @@ def removeViolatingWords(content, violations, replacements):
 
 @client.event
 async def on_ready():
+    # Display welcome message
     print(f'Bot connected to Discord as {client.user}!')
+
+    # Get out the object of our guild
+    guilds = client.guilds
+    for g in guilds:
+        if g.id = GUILD_ID:
+            guild = g
+            break
+    
 
 @client.event
 async def on_message(message):
@@ -119,6 +132,10 @@ async def on_message(message):
         # Increment the number of strikes that this user has
         if originalAuthor in user_strikes:
             user_strikes[originalAuthor] = user_strikes[originalAuthor] + 1
+            if user_strikes[originalAuthor] == allowable_strikes:
+                # Kick the user (they must request a re-join)
+                await guild.kick(originalAuthor)
+            
         else:
             user_strikes[originalAuthor] = 1
 
